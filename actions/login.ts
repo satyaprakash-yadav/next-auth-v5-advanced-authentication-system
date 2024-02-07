@@ -12,7 +12,7 @@ import { getTwoFactorTokenByEmail } from "@/data/two-factor-token";
 import { db } from "@/lib/db";
 import { getTwoFactorConfrimationByUserId } from "@/data/two-factor-confirmation";
 
-export const login = async (values: z.infer<typeof LoginSchema>) => {
+export const login = async (values: z.infer<typeof LoginSchema>, callbackUrl?: string | null) => {
     const validatedFields = LoginSchema.safeParse(values);
 
     if (!validatedFields.success) {
@@ -46,28 +46,28 @@ export const login = async (values: z.infer<typeof LoginSchema>) => {
             const twoFactorToken = await getTwoFactorTokenByEmail(existingUser.email);
 
             if (!twoFactorToken) {
-                return {error: "Invalid code!"}
+                return { error: "Invalid code!" }
             }
 
             if (twoFactorToken.token !== code) {
-                return {error: "Invalid code!"}
+                return { error: "Invalid code!" }
             }
 
             const hasExpired = new Date(twoFactorToken.expires) < new Date();
 
             if (hasExpired) {
-                return {error: "Code Expired!"};
+                return { error: "Code Expired!" };
             }
 
             await db.twoFactorToken.delete({
-                where: {id: twoFactorToken.id}
+                where: { id: twoFactorToken.id }
             });
 
             const existingConfirmation = await getTwoFactorConfrimationByUserId(existingUser.id);
 
             if (existingConfirmation) {
                 await db.twoFactorConfirmation.delete({
-                    where: {id: existingConfirmation.id}
+                    where: { id: existingConfirmation.id }
                 });
             }
 
@@ -77,7 +77,7 @@ export const login = async (values: z.infer<typeof LoginSchema>) => {
                 }
             });
 
-            
+
         } else {
             const twoFactorToken = await generateTwoFactorToken(existingUser.email);
 
@@ -94,7 +94,7 @@ export const login = async (values: z.infer<typeof LoginSchema>) => {
         await signIn("credentials", {
             email,
             password,
-            redirectTo: DEFAULT_LOGIN_REDIRECT,
+            redirectTo: callbackUrl || DEFAULT_LOGIN_REDIRECT,
         })
     } catch (error) {
         if (error instanceof AuthError) {
